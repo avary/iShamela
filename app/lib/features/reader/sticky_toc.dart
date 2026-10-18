@@ -62,7 +62,7 @@ class TocVisibleRow {
   final bool expanded;
 }
 
-/// One Shamela contents heading, in the order it was stored.
+/// One Shamela contents heading.
 class TocHeading {
   const TocHeading({
     required this.titleId,
@@ -73,6 +73,8 @@ class TocHeading {
 
   final int titleId;
   final int shamelaTitleId;
+
+  /// A `title_id` of another heading, or null.
   final int? parentId;
   final String title;
 }
@@ -95,12 +97,13 @@ final chapterRegex = RegExp(
 );
 final bookRegex = RegExp(r'^(كتاب|مقدمة|\[مقدمة)(?![\u0600-\u06FF])');
 
-/// Contents tree in `shamela_title_id` order.
+/// Contents tree in ascending `shamela_title_id` order.
 ///
-/// A null-parent volume is always a root. A book title is a root only when
-/// the dataset has no volumes, and not when the title contains إلى. A known
-/// parent wins. A chapter title hangs on the current root. Anything else
-/// hangs on the current chapter, then the current root, then the top level.
+/// A `parent_id` naming an earlier heading's `title_id` wins. Without one,
+/// the title decides: a volume is always a root; a book title is a root only
+/// when the dataset has no volumes, and not when the title contains إلى; a
+/// chapter title hangs on the current root; anything else hangs on the
+/// current chapter, then the current root, then the top level.
 List<TocTreeNode> buildTocTree(List<TocHeading> items) {
   final hasVolumes = items.any(
     (item) => item.parentId == null && volumeRegex.hasMatch(item.title.trim()),
@@ -161,6 +164,32 @@ List<int?> tocTreeParentIds(List<TocTreeNode> roots, List<int> titleIds) {
     walk(root, null);
   }
   return [for (final id in titleIds) parentOf[id]];
+}
+
+/// [buildTocTree] flattened for the contents list: every heading right after
+/// its parent. [order] holds indexes into [headings]; [parents] is aligned
+/// with [order].
+({List<int> order, List<int?> parents}) tocTreeOrder(
+  List<TocHeading> headings,
+) {
+  final byId = _indexById([for (final h in headings) h.titleId]);
+  final order = <int>[];
+  final parents = <int?>[];
+  void walk(TocTreeNode node, int? parent) {
+    final i = byId[node.titleId];
+    if (i != null) {
+      order.add(i);
+      parents.add(parent);
+    }
+    for (final child in node.children) {
+      walk(child, node.titleId);
+    }
+  }
+
+  for (final root in buildTocTree(headings)) {
+    walk(root, null);
+  }
+  return (order: order, parents: parents);
 }
 
 /// Ids from [index] up through the root.

@@ -26,6 +26,7 @@ import 'package:ishamela/ui/glass/drawn/drawn_glass_surface.dart';
 import 'package:ishamela/ui/glass/glass_surface.dart';
 import 'package:ishamela/ui/rosette_divider.dart';
 import 'package:ishamela/ui/theme/ishamela_theme.dart';
+import 'package:ishamela/ui/nav_bar_inset.dart';
 import 'package:ishamela/ui/theme/ishamela_tokens.dart';
 
 const _kSyncBannerDismissKey = 'home_sync_banner_dismissed_version';
@@ -169,7 +170,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             child: ListView(
               controller: _scroll,
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                12,
+                20,
+                32 + navBarInset(context),
+              ),
               children: [
                 _HomeHeader(auth: auth, locale: locale),
                 const SizedBox(height: 20),
@@ -202,7 +208,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: ListView(
             controller: _scroll,
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            padding: EdgeInsets.fromLTRB(20, 12, 20, 32 + navBarInset(context)),
             children: [
               _HomeHeader(auth: auth, locale: locale),
               const SizedBox(height: 16),
@@ -210,16 +216,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                 shape: const GlassShape.bar(),
                 child: _ContinueCard(
                   entry: latest,
-                book: book,
-                installed: installed,
-                progress: progress,
-                locale: locale,
-                onTap: () => _openOrPromptDownload(
-                  entry: latest,
                   book: book,
                   installed: installed,
+                  progress: progress,
+                  locale: locale,
+                  onTap: () => _openOrPromptDownload(
+                    entry: latest,
+                    book: book,
+                    installed: installed,
+                  ),
                 ),
-              ),
               ),
               const SizedBox(height: 16),
               _WeeklyStatsStrip(stats: stats, locale: locale),
@@ -267,7 +273,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
       );
     }
-    return Scaffold(body: SafeArea(child: body));
+    return Scaffold(body: SafeArea(bottom: false, child: body));
   }
 
   List<Widget> _buildRecentGroups(
@@ -530,9 +536,7 @@ class _ContinueCard extends StatelessWidget {
         color: glass ? const Color(0x00000000) : t.card,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: glass ? const Color(0x00000000) : t.hairline,
-          ),
+          side: BorderSide(color: glass ? const Color(0x00000000) : t.hairline),
         ),
         child: InkWell(
           onTap: onTap,

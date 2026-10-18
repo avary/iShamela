@@ -241,6 +241,38 @@ void main() {
     expect(roots[0].children, isEmpty);
   });
 
+  ({List<int> ids, List<int?> parents}) flat(List<TocHeading> headings) {
+    final tree = tocTreeOrder(headings);
+    return (
+      ids: [for (final i in tree.order) headings[i].titleId],
+      parents: tree.parents,
+    );
+  }
+
+  test('the flat list follows shamela_title_id and keeps children under '
+      'their parent', () {
+    final tree = flat(const [
+      TocHeading(titleId: 5, shamelaTitleId: 3, title: 'مسألة'),
+      TocHeading(titleId: 10, shamelaTitleId: 2, title: 'باب المياه'),
+      TocHeading(titleId: 1, shamelaTitleId: 1, title: 'كتاب الطهارة'),
+      TocHeading(titleId: 7, shamelaTitleId: 4, title: 'كتاب الصلاة'),
+    ]);
+    expect(tree.ids, [1, 10, 5, 7]);
+    expect(tree.parents, [null, 1, 10, null]);
+  });
+
+  test('parent_id decides nesting; null parents use the title rules', () {
+    final tree = flat(const [
+      TocHeading(titleId: 1, shamelaTitleId: 1, title: 'المجلد الأول'),
+      TocHeading(titleId: 2, shamelaTitleId: 2, parentId: 1, title: 'مقدمة'),
+      TocHeading(titleId: 3, shamelaTitleId: 3, title: 'باب المياه'),
+      TocHeading(titleId: 4, shamelaTitleId: 4, title: 'مسألة'),
+      TocHeading(titleId: 5, shamelaTitleId: 5, parentId: 2, title: 'تمهيد'),
+    ]);
+    expect(tree.ids, [1, 2, 5, 3, 4]);
+    expect(tree.parents, [null, 1, 2, 1, 3]);
+  });
+
   test('moving to another heading keeps only that branch open', () {
     const ids = [1, 2, 3, 4, 5];
     const parents = <int?>[null, 1, 2, 1, 4];

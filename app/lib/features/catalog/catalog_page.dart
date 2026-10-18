@@ -20,9 +20,9 @@ import 'package:ishamela/ui/glass/drawn/drawn_glass_surface.dart';
 import 'package:ishamela/ui/glass/glass_surface.dart';
 import 'package:ishamela/ui/book_card.dart';
 import 'package:ishamela/ui/empty_state.dart';
+import 'package:ishamela/ui/nav_bar_inset.dart';
 import 'package:ishamela/ui/highlighted_text.dart';
 import 'package:ishamela/ui/progress_ring.dart';
-import 'package:ishamela/ui/rosette_divider.dart';
 import 'package:ishamela/ui/section_label.dart';
 import 'package:ishamela/ui/segmented_pills.dart';
 import 'package:ishamela/ui/theme/ishamela_theme.dart';
@@ -63,165 +63,163 @@ class _CatalogPageState extends ConsumerState<CatalogPage> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        body: catalogAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('$e')),
-          data: (catalog) {
-            if (!catalog.hasCatalog) {
-              return EmptyState(
-                message: l10n.offlineEmpty,
-                actionLabel: l10n.refresh,
-                onAction: _refresh,
+        body: SafeArea(
+          bottom: false,
+          child: catalogAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('$e')),
+            data: (catalog) {
+              if (!catalog.hasCatalog) {
+                return EmptyState(
+                  message: l10n.offlineEmpty,
+                  actionLabel: l10n.refresh,
+                  onAction: _refresh,
+                );
+              }
+
+              final showStale = catalog.isCatalogStale();
+              final staleDays = catalog.catalogAgeDays() ?? 30;
+              final bookCount = catalog.bookCount();
+              final installedBytes = stateAsync.maybeWhen(
+                data: (s) => s.installedSqliteBytesTotal,
+                orElse: () => 0,
               );
-            }
+              final searching = _query.trim().isNotEmpty;
 
-            final showStale = catalog.isCatalogStale();
-            final staleDays = catalog.catalogAgeDays() ?? 30;
-            final bookCount = catalog.bookCount();
-            final installedBytes = stateAsync.maybeWhen(
-              data: (s) => s.installedSqliteBytesTotal,
-              orElse: () => 0,
-            );
-            final searching = _query.trim().isNotEmpty;
-
-            return CustomScrollView(
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Row(
-                          children: [
-                            const RosetteMark(size: 16),
-                            const SizedBox(width: 8),
-                            Text(
-                              l10n.brandName,
-                              style: TextStyle(
-                                fontFamily: kFontUi,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 10.5,
-                                letterSpacing: 2.5,
-                                color: t.emphasis,
-                              ),
-                            ),
-                            const Spacer(),
-                            IconButton(
-                              tooltip: l10n.refresh,
-                              onPressed: _refresh,
-                              icon: const Icon(Icons.refresh),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          l10n.tabCatalog,
-                          style: TextStyle(
-                            fontFamily: kFontAmiri,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 26,
-                            color: t.ink,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          l10n.catalogFooter(
-                            bookCount,
-                            formatBytes(installedBytes),
-                          ),
-                          style: TextStyle(
-                            fontFamily: kFontUi,
-                            fontSize: 12,
-                            color: t.muted,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        GlassCluster(
-                          shape: const GlassShape.bar(),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+              return CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
                             children: [
-                              CatalogSearchField(
-                                hintText: l10n.searchHint,
-                                initialQuery: _query,
-                                onChanged: (v) => setState(() => _query = v),
-                              ),
-                              if (showStale) ...[
-                                const SizedBox(height: 12),
-                                _StaleBanner(
-                                  message: l10n.catalogStaleDays(staleDays),
-                                  action: l10n.catalogStaleAction,
-                                  onAction: _refresh,
-                                ),
-                              ],
-                              if (searching) ...[
-                                const SizedBox(height: 12),
-                                SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(
-                                    children: [
-                                      for (final s in CatalogSearchScope.values)
-                                        Padding(
-                                          padding: const EdgeInsetsDirectional.only(
-                                            end: 8,
-                                          ),
-                                          child: GlassFilterChip(
-                                            label: Text(_scopeLabel(l10n, s)),
-                                            selected: _scope == s,
-                                            selectedColor: t.green700,
-                                            checkmarkColor: Colors.white,
-                                            labelColor: _scope == s
-                                                ? Colors.white
-                                                : t.ink,
-                                            side: BorderSide(
-                                              color: _scope == s
-                                                  ? t.green700
-                                                  : t.hairline,
-                                            ),
-                                            onSelected: (_) =>
-                                                setState(() => _scope = s),
-                                          ),
-                                        ),
-                                    ],
+                              Expanded(
+                                child: Text(
+                                  l10n.tabCatalog,
+                                  style: TextStyle(
+                                    fontFamily: kFontAmiri,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 26,
+                                    color: t.ink,
                                   ),
                                 ),
-                              ] else ...[
-                                const SizedBox(height: 16),
-                                SegmentedPills(
-                                  labels: [l10n.categories, l10n.authors],
-                                  selectedIndex: _browseIndex,
-                                  onChanged: (i) =>
-                                      setState(() => _browseIndex = i),
-                                ),
-                              ],
+                              ),
+                              IconButton(
+                                tooltip: l10n.refresh,
+                                onPressed: _refresh,
+                                icon: const Icon(Icons.refresh),
+                              ),
                             ],
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            l10n.catalogFooter(
+                              bookCount,
+                              formatBytes(installedBytes),
+                            ),
+                            style: TextStyle(
+                              fontFamily: kFontUi,
+                              fontSize: 12,
+                              color: t.muted,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          GlassCluster(
+                            shape: const GlassShape.bar(),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                CatalogSearchField(
+                                  hintText: l10n.searchHint,
+                                  initialQuery: _query,
+                                  onChanged: (v) => setState(() => _query = v),
+                                ),
+                                if (showStale) ...[
+                                  const SizedBox(height: 12),
+                                  _StaleBanner(
+                                    message: l10n.catalogStaleDays(staleDays),
+                                    action: l10n.catalogStaleAction,
+                                    onAction: _refresh,
+                                  ),
+                                ],
+                                if (searching) ...[
+                                  const SizedBox(height: 12),
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Row(
+                                      children: [
+                                        for (final s
+                                            in CatalogSearchScope.values)
+                                          Padding(
+                                            padding:
+                                                const EdgeInsetsDirectional.only(
+                                                  end: 8,
+                                                ),
+                                            child: GlassFilterChip(
+                                              label: Text(_scopeLabel(l10n, s)),
+                                              selected: _scope == s,
+                                              selectedColor: t.green700,
+                                              checkmarkColor: Colors.white,
+                                              labelColor: _scope == s
+                                                  ? Colors.white
+                                                  : t.ink,
+                                              side: BorderSide(
+                                                color: _scope == s
+                                                    ? t.green700
+                                                    : t.hairline,
+                                              ),
+                                              onSelected: (_) =>
+                                                  setState(() => _scope = s),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ] else ...[
+                                  const SizedBox(height: 16),
+                                  SegmentedPills(
+                                    labels: [l10n.categories, l10n.authors],
+                                    selectedIndex: _browseIndex,
+                                    onChanged: (i) =>
+                                        setState(() => _browseIndex = i),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                if (syncTick.isLoading)
-                  const SliverToBoxAdapter(
-                    child: LinearProgressIndicator(minHeight: 2),
-                  ),
-                if (searching)
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                    sliver: _SearchResultsSliver(
-                      catalog: catalog,
-                      query: _query,
-                      scope: _scope,
+                  if (syncTick.isLoading)
+                    const SliverToBoxAdapter(
+                      child: LinearProgressIndicator(minHeight: 2),
                     ),
-                  )
-                else if (_browseIndex == 0)
-                  _CategorySliver(catalog: catalog)
-                else
-                  _AuthorSliver(catalog: catalog),
-              ],
-            );
-          },
+                  if (searching)
+                    SliverPadding(
+                      padding: EdgeInsets.fromLTRB(
+                        20,
+                        8,
+                        20,
+                        24 + navBarInset(context),
+                      ),
+                      sliver: _SearchResultsSliver(
+                        catalog: catalog,
+                        query: _query,
+                        scope: _scope,
+                      ),
+                    )
+                  else if (_browseIndex == 0)
+                    _CategorySliver(catalog: catalog)
+                  else
+                    _AuthorSliver(catalog: catalog),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -376,7 +374,7 @@ class _CategorySliver extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = catalog.categories();
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      padding: EdgeInsets.fromLTRB(20, 8, 20, 24 + navBarInset(context)),
       sliver: SliverList.separated(
         itemCount: items.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -409,7 +407,7 @@ class _AuthorSliver extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = catalog.authors();
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      padding: EdgeInsets.fromLTRB(20, 8, 20, 24 + navBarInset(context)),
       sliver: SliverList.separated(
         itemCount: items.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -418,7 +416,10 @@ class _AuthorSliver extends StatelessWidget {
           return _BrowseEntityCard(
             icon: Icons.person_outline,
             title: a.name,
-            subtitle: formatAuthorDeath(AppLocalizations.of(context), a.deathYearHijri),
+            subtitle: formatAuthorDeath(
+              AppLocalizations.of(context),
+              a.deathYearHijri,
+            ),
             onTap: () => AuthorPage.open(context, authorId: a.id, author: a),
           );
         },
@@ -555,9 +556,9 @@ class _BookListPageState extends ConsumerState<BookListPage> {
       downloadStatus: (id) => statuses[id],
     );
     if (plan.missingCount == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.noBooks)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(l10n.noBooks)));
       return;
     }
     final t = IshamelaTokens.of(context);
@@ -653,13 +654,14 @@ class _BookListPageState extends ConsumerState<BookListPage> {
                   children: [
                     OutlinedButton(
                       onPressed: () async {
-                        final state = await ref.read(stateDatabaseProvider.future);
+                        final state = await ref.read(
+                          stateDatabaseProvider.future,
+                        );
                         if (!mounted) return;
                         final statuses = <int, DownloadStatus?>{};
                         for (final row in state.listDownloads()) {
-                          statuses[row['book_id'] as int] = DownloadStatus.parse(
-                            row['status'] as String,
-                          );
+                          statuses[row['book_id'] as int] =
+                              DownloadStatus.parse(row['status'] as String);
                         }
                         final targets = downloadableNotInstalledNotQueued(
                           books: _visible,
@@ -683,15 +685,11 @@ class _BookListPageState extends ConsumerState<BookListPage> {
                           ? null
                           : () {
                               final books = widget.books
-                                  .where(
-                                    (b) => _selected.contains(b.bookId),
-                                  )
+                                  .where((b) => _selected.contains(b.bookId))
                                   .toList();
                               _confirmAndEnqueue(books);
                             },
-                      child: Text(
-                        l10n.downloadSelectedCount(_selected.length),
-                      ),
+                      child: Text(l10n.downloadSelectedCount(_selected.length)),
                     ),
                     TextButton(
                       onPressed: () => setState(() {
@@ -761,9 +759,7 @@ class _BookListPageState extends ConsumerState<BookListPage> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(
-          title: Text(widget.title),
-        ),
+        appBar: AppBar(title: Text(widget.title)),
         body: body,
       ),
     );
@@ -798,7 +794,11 @@ class BookListView extends ConsumerWidget {
     final stateAsync = ref.watch(stateDatabaseProvider);
     final downloadsAsync = ref.watch(downloadServiceProvider);
     final width = MediaQuery.sizeOf(context).width;
-    final cols = width >= 1200 ? 3 : width >= 600 ? 2 : 1;
+    final cols = width >= 1200
+        ? 3
+        : width >= 600
+        ? 2
+        : 1;
 
     if (books.isEmpty) {
       return EmptyState(message: l10n.noBooks);
@@ -817,8 +817,9 @@ class BookListView extends ConsumerWidget {
         data: (s) => s.installedPageCount(book.bookId),
         orElse: () => null,
       );
-      final displayPages =
-          book.pageCount > 0 ? book.pageCount : (installedPages ?? 0);
+      final displayPages = book.pageCount > 0
+          ? book.pageCount
+          : (installedPages ?? 0);
       final meta = <String>[
         if (book.volumeCount != null && book.volumeCount! > 0)
           l10n.volumesCount(book.volumeCount!),
@@ -830,16 +831,14 @@ class BookListView extends ConsumerWidget {
       final canDownload = book.canInstallOnDevice;
       final bytesDone = downloadsAsync.maybeWhen(
         data: (svc) {
-          final tasks =
-              svc.listTasks().where((t) => t.bookId == book.bookId);
+          final tasks = svc.listTasks().where((t) => t.bookId == book.bookId);
           return tasks.isEmpty ? 0 : tasks.first.bytesDone;
         },
         orElse: () => 0,
       );
       final bytesTotal = downloadsAsync.maybeWhen(
         data: (svc) {
-          final tasks =
-              svc.listTasks().where((t) => t.bookId == book.bookId);
+          final tasks = svc.listTasks().where((t) => t.bookId == book.bookId);
           return tasks.isEmpty ? null : tasks.first.bytesTotal;
         },
         orElse: () => null,
@@ -899,22 +898,24 @@ class BookListView extends ConsumerWidget {
           onAuthorTap: book.authorId == null
               ? null
               : () => AuthorPage.open(
-                    context,
-                    authorId: book.authorId!,
-                    author: Author(
-                      id: book.authorId!,
-                      name: book.authorName ?? '',
-                      deathYearHijri: book.authorDeathYearHijri,
-                    ),
+                  context,
+                  authorId: book.authorId!,
+                  author: Author(
+                    id: book.authorId!,
+                    name: book.authorName ?? '',
+                    deathYearHijri: book.authorDeathYearHijri,
                   ),
+                ),
           meta: meta,
           highlightQuery: highlightQuery,
           available: canDownload || installed,
-          unavailableLabel:
-              canDownload || installed ? null : l10n.unavailableForDownload,
+          unavailableLabel: canDownload || installed
+              ? null
+              : l10n.unavailableForDownload,
           trailing: trailing,
           selected: selecting ? selected.contains(book.bookId) : null,
-          onSelectedChanged: selecting &&
+          onSelectedChanged:
+              selecting &&
                   canDownload &&
                   !installed &&
                   affordance.kind == BookAffordanceKind.download
@@ -922,14 +923,15 @@ class BookListView extends ConsumerWidget {
               : null,
           onTap: installed
               ? () => ReaderPage.open(
-                    context,
-                    bookId: book.bookId,
-                    title: book.title,
-                    authorName: book.authorName,
-                    authorId: book.authorId,
-                  )
+                  context,
+                  bookId: book.bookId,
+                  title: book.title,
+                  authorName: book.authorName,
+                  authorId: book.authorId,
+                )
               : null,
-          onLongPress: installed ||
+          onLongPress:
+              installed ||
                   !canDownload ||
                   affordance.kind != BookAffordanceKind.download
               ? null
@@ -939,14 +941,12 @@ class BookListView extends ConsumerWidget {
     }
 
     if (shrinkWrap) {
-      return Column(
-        children: [for (final b in books) tile(b)],
-      );
+      return Column(children: [for (final b in books) tile(b)]);
     }
 
     if (cols > 1) {
       return GridView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + navBarInset(context)),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: cols,
           mainAxisExtent: 148,
@@ -959,7 +959,7 @@ class BookListView extends ConsumerWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + navBarInset(context)),
       itemCount: books.length,
       itemBuilder: (context, i) => tile(books[i]),
     );

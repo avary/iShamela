@@ -46,6 +46,8 @@ class TocEntry {
   final int? parentId;
   final String title;
   final int pageId;
+
+  /// Shamela's `shamela_title_id`; the contents sort on it.
   final int position;
 }
 
@@ -251,13 +253,11 @@ class BookDatabase {
 
   /// Distinct volume labels in reading order, each with its first page.
   List<BookPart> parts() {
-    final rows = _db.select(
-      '''
+    final rows = _db.select('''
       SELECT id, part FROM pages
       WHERE part IS NOT NULL AND part != ''
       ORDER BY ${pagesReadingOrderSql()}
-      ''',
-    );
+      ''');
     final out = <BookPart>[];
     final seen = <String>{};
     for (final row in rows) {
@@ -289,7 +289,7 @@ class BookDatabase {
       return _db
           .select(
             'SELECT id, parent_id, title, page_id, position FROM toc '
-            'ORDER BY position, id',
+            'ORDER BY position ASC, id ASC',
           )
           .map(
             (r) => TocEntry(

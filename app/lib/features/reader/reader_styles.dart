@@ -59,10 +59,10 @@ class RoleStyle {
   final bool bold;
 
   Map<String, Object?> toJson() => {
-        'color':
-            '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
-        'bold': bold,
-      };
+    'color':
+        '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
+    'bold': bold,
+  };
 
   RoleStyle copyWith({Color? color, bool? bold}) =>
       RoleStyle(color: color ?? this.color, bold: bold ?? this.bold);
@@ -83,21 +83,22 @@ class ReaderTextStyles {
   static const settingsKey = 'reader_text_styles';
 
   static ReaderTextStyles defaults() => ReaderTextStyles(
-        byRole: {
-          TextRole.body:
-              const RoleStyle(color: Color(0xFF1A1A1A), bold: false),
-          TextRole.title:
-              const RoleStyle(color: Color(0xFF0D5C3D), bold: true),
-          TextRole.honorific:
-              const RoleStyle(color: Color(0xFF1B7A4E), bold: false),
-          TextRole.quran:
-              const RoleStyle(color: Color(0xFFB8860B), bold: false),
-          TextRole.punctuation:
-              const RoleStyle(color: Color(0xFF888888), bold: false),
-        },
-        font: ReaderFont.amiri,
-        fontSize: 20,
-      );
+    byRole: {
+      TextRole.body: const RoleStyle(color: Color(0xFF1A1A1A), bold: false),
+      TextRole.title: const RoleStyle(color: Color(0xFF0D5C3D), bold: true),
+      TextRole.honorific: const RoleStyle(
+        color: Color(0xFF1B7A4E),
+        bold: false,
+      ),
+      TextRole.quran: const RoleStyle(color: Color(0xFFB8860B), bold: false),
+      TextRole.punctuation: const RoleStyle(
+        color: Color(0xFF888888),
+        bold: false,
+      ),
+    },
+    font: ReaderFont.amiri,
+    fontSize: 20,
+  );
 
   RoleStyle styleFor(TextRole role) =>
       _byRole[role] ?? defaults()._byRole[role]!;
@@ -112,10 +113,10 @@ class ReaderTextStyles {
       ReaderTextStyles(byRole: _byRole, font: f, fontSize: fontSize);
 
   ReaderTextStyles withFontSize(double size) => ReaderTextStyles(
-        byRole: _byRole,
-        font: font,
-        fontSize: size.clamp(14, 40),
-      );
+    byRole: _byRole,
+    font: font,
+    fontSize: size.clamp(14, 40),
+  );
 
   String toJsonString() {
     final out = <String, Object?>{};
@@ -153,8 +154,10 @@ class ReaderTextStyles {
       ]) {
         final entry = decoded[legacy];
         if (entry is Map) {
-          map[TextRole.honorific] =
-              _roleFromJson(entry, map[TextRole.honorific]!);
+          map[TextRole.honorific] = _roleFromJson(
+            entry,
+            map[TextRole.honorific]!,
+          );
           break;
         }
       }

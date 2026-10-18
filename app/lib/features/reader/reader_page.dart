@@ -234,7 +234,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       }
       final mode = _parseReadingMode(state.setting('reading_mode'));
       final page = db.pageById(ids[index]);
-      final toc = db.tocEntries();
+      final tree = _orderToc(db.tocEntries());
+      final toc = tree.toc;
       final parts = db.parts();
       final section = _sectionTitleForToc(toc, ids[index]);
       final openedAt = DateTime.now().millisecondsSinceEpoch;
@@ -275,7 +276,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         _resumeProgressPageId = progressPage;
         _resumePrintPage = showChip ? resumePage?.pageNumber : null;
         _resumePart = showChip ? resumePage?.part : null;
-        _cacheTocParents();
+        _tocParents = tree.parents;
         _tocFollowIndex = null;
         _followToc(index);
       });
@@ -1444,9 +1445,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
             ? 14.0
             : 13.0;
         return Padding(
-          key: selected
-              ? _tocActiveKey
-              : (i == 0 ? _tocProbeKey : null),
+          key: selected ? _tocActiveKey : (i == 0 ? _tocProbeKey : null),
           padding: EdgeInsetsDirectional.only(start: 4.0 + depth * 18),
           child: Material(
             color: selected ? t.green100 : Colors.transparent,
@@ -1530,20 +1529,23 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     onSheetTick?.call();
   }
 
-  void _cacheTocParents() {
-    final headings = [
-      for (final entry in _toc)
+  /// Ascending `shamela_title_id`; `parent_id` points at a `title_id`.
+  static ({List<TocEntry> toc, List<int?> parents}) _orderToc(
+    List<TocEntry> entries,
+  ) {
+    final tree = tocTreeOrder([
+      for (final entry in entries)
         TocHeading(
           titleId: entry.id,
           shamelaTitleId: entry.position,
           parentId: entry.parentId,
           title: entry.title,
         ),
-    ];
-    final titleIds = [for (final heading in headings) heading.titleId];
-    _tocParents = titleIds.isEmpty
-        ? const []
-        : tocTreeParentIds(buildTocTree(headings), titleIds);
+    ]);
+    return (
+      toc: [for (final i in tree.order) entries[i]],
+      parents: tree.parents,
+    );
   }
 
   /// Expands the branch of the heading that contains this page, and closes
@@ -1656,7 +1658,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         WidgetsBinding.instance.addPostFrameCallback((_) => step());
         return;
       }
-      final short = dest + 1 < pos * _tocRowExtent &&
+      final short =
+          dest + 1 < pos * _tocRowExtent &&
           position.pixels >= position.maxScrollExtent - 1;
       if (short) {
         if (idle++ > 24) {

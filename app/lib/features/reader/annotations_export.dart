@@ -93,7 +93,8 @@ String buildAnnotationsExport({
   required String noteLabel,
   String? edition,
 }) {
-  final sorted = [...entries]..sort((a, b) {
+  final sorted = [...entries]
+    ..sort((a, b) {
       final pa = a.part ?? '';
       final pb = b.part ?? '';
       final c = pa.compareTo(pb);

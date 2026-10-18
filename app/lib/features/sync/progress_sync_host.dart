@@ -36,7 +36,10 @@ class _ProgressSyncHostState extends ConsumerState<ProgressSyncHost>
       final offline = _isOffline(results);
       final restored = _offline && !offline;
       _offline = offline;
-      if (restored) unawaited(_flush());
+      if (restored) {
+        unawaited(_restoreSession());
+        unawaited(_flush());
+      }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_flush()));
   }
@@ -53,6 +56,7 @@ class _ProgressSyncHostState extends ConsumerState<ProgressSyncHost>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      unawaited(_restoreSession());
       unawaited(_flush());
       return;
     }
@@ -77,6 +81,12 @@ class _ProgressSyncHostState extends ConsumerState<ProgressSyncHost>
     final scheduler = _scheduler;
     if (scheduler == null) return Future<void>.value();
     return scheduler.flush(timeout: timeout);
+  }
+
+  /// Re-checks a saved session that startup could not confirm offline.
+  Future<void> _restoreSession() {
+    if (!mounted) return Future<void>.value();
+    return ref.read(authProvider.notifier).restoreSession();
   }
 
   bool _isOffline(List<ConnectivityResult> results) =>

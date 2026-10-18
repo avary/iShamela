@@ -8,11 +8,7 @@ import 'package:ishamela/ui/theme/reader_theme_tokens.dart';
 ///
 /// Stock paper defaults are treated as “no override” so atmosphere changes
 /// recolor roles until the user picks an explicit swatch.
-Color resolveRoleColor(
-  TextRole role,
-  RoleStyle user,
-  ReaderThemeTokens theme,
-) {
+Color resolveRoleColor(TextRole role, RoleStyle user, ReaderThemeTokens theme) {
   final paperDefault = ReaderTextStyles.defaults().styleFor(role);
   if (user.color.toARGB32() == paperDefault.color.toARGB32() &&
       user.bold == paperDefault.bold) {

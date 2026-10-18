@@ -25,35 +25,83 @@ bool get supportsAppleSignIn =>
 /// Session follows the project access token and `GET /v1/me` (SPEC-027 / SPEC-028).
 class AuthController extends Notifier<AuthStatus> {
   GoogleSignIn? _google;
+  Future<void>? _restoring;
+  bool _deviceRegistered = false;
+
+  /// `error.code` values that mean the server no longer accepts this session.
+  static const _rejectedCodes = {'UNAUTHORIZED', 'TOKEN_INVALID'};
 
   @override
   AuthStatus build() {
-    Future<void>.microtask(_restore);
+    Future<void>.microtask(restoreSession);
     return const AuthGuest();
+  }
+
+  /// Shows the cached profile at once, then confirms it with `GET /v1/me`.
+  /// Safe to call on every resume or reconnect; guests without a saved
+  /// session never touch the network.
+  Future<void> restoreSession() {
+    return _restoring ??= _restore().whenComplete(() => _restoring = null);
   }
 
   Future<void> _restore() async {
     try {
-      if (firebaseReady && FirebaseAuth.instance.currentUser != null) {
-        final profile = await ref.read(syncApiProvider).getMe();
+      final hasFirebaseUser =
+          firebaseReady && FirebaseAuth.instance.currentUser != null;
+      if (!hasFirebaseUser) {
+        final refresh = await ref.read(tokenStoreProvider).readRefresh();
         if (!ref.mounted) return;
-        state = AuthSignedIn(_profile(profile));
-        await ref.read(accountSessionProvider).registerDevice();
-        return;
+        if (refresh == null || refresh.isEmpty) {
+          if (state is AuthGuest) await ref.read(profileCacheProvider).clear();
+          return;
+        }
       }
-      final refresh = await ref.read(tokenStoreProvider).readRefresh();
-      if (!ref.mounted) return;
-      if (refresh == null || refresh.isEmpty) {
-        state = const AuthGuest();
-        return;
+      if (state is AuthGuest) {
+        final cached = await ref.read(profileCacheProvider).read();
+        if (!ref.mounted) return;
+        if (cached != null && state is AuthGuest) {
+          state = AuthSignedIn(cached);
+        }
       }
+      if (await revalidate() && !_deviceRegistered) {
+        _deviceRegistered = true;
+        await _registerDevice();
+      }
+    } catch (_) {}
+  }
+
+  /// True when the server confirmed the session. Network failures keep the
+  /// current state; only a rejected session drops to guest.
+  Future<bool> revalidate() async {
+    try {
       final profile = await ref.read(syncApiProvider).getMe();
-      if (!ref.mounted) return;
-      state = AuthSignedIn(_profile(profile));
-      await ref.read(accountSessionProvider).registerDevice();
+      if (!ref.mounted) return false;
+      await _signedIn(_profile(profile));
+      return true;
+    } on ApiAuthException catch (error) {
+      if (ref.mounted && _rejectedCodes.contains(error.code)) {
+        await forceGuest();
+      }
+      return false;
     } catch (_) {
-      if (ref.mounted) state = const AuthGuest();
+      return false;
     }
+  }
+
+  /// The server rejected the session (SPEC-028 §8); tokens are already gone.
+  Future<void> forceGuest() async {
+    try {
+      await ref.read(profileCacheProvider).clear();
+    } catch (_) {}
+    _deviceRegistered = false;
+    if (ref.mounted) state = const AuthGuest();
+  }
+
+  Future<void> _signedIn(UserProfile profile) async {
+    state = AuthSignedIn(profile);
+    try {
+      await ref.read(profileCacheProvider).write(profile);
+    } catch (_) {}
   }
 
   UserProfile _profile(ApiProfile profile) {
@@ -72,8 +120,9 @@ class AuthController extends Notifier<AuthStatus> {
     final session = ref.read(accountSessionProvider);
     await session.adoptFirebase();
     final profile = await ref.read(syncApiProvider).getMe();
-    state = AuthSignedIn(_profile(profile));
+    await _signedIn(_profile(profile));
     session.replayInBackground();
+    _deviceRegistered = true;
     unawaited(_registerDevice());
   }
 
@@ -85,7 +134,8 @@ class AuthController extends Notifier<AuthStatus> {
 
   Future<void> _adopted() async {
     final profile = await ref.read(syncApiProvider).getMe();
-    state = AuthSignedIn(_profile(profile));
+    await _signedIn(_profile(profile));
+    _deviceRegistered = true;
     await _registerDevice();
   }
 
@@ -192,7 +242,7 @@ class AuthController extends Notifier<AuthStatus> {
     try {
       if (firebaseReady) await FirebaseAuth.instance.signOut();
     } catch (_) {}
-    state = const AuthGuest();
+    await forceGuest();
   }
 
   Future<void> updateDisplayName(String name) async {
@@ -202,13 +252,13 @@ class AuthController extends Notifier<AuthStatus> {
     }
     if (state is! AuthSignedIn) throw AuthUnavailable('Not signed in');
     final profile = await ref.read(syncApiProvider).patchMe(trimmed);
-    state = AuthSignedIn(_profile(profile));
+    await _signedIn(_profile(profile));
   }
 
   /// Deletes the account and the synced rows on this device.
   Future<void> deleteAccount() async {
     if (state is! AuthSignedIn) throw AuthUnavailable('Not signed in');
     await ref.read(accountSessionProvider).deleteAccount();
-    state = const AuthGuest();
+    await forceGuest();
   }
 }

@@ -26,6 +26,7 @@ import 'package:ishamela/ui/glass/glass_surface.dart';
 import 'package:ishamela/ui/book_card.dart';
 import 'package:ishamela/ui/book_spine.dart';
 import 'package:ishamela/ui/empty_state.dart';
+import 'package:ishamela/ui/nav_bar_inset.dart';
 import 'package:ishamela/ui/highlighted_text.dart';
 import 'package:ishamela/ui/meta_chip.dart';
 import 'package:ishamela/ui/segmented_pills.dart';
@@ -170,18 +171,15 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
       });
       return;
     }
-    final paths = ref.read(appPathsProvider).maybeWhen(
-          data: (p) => p,
-          orElse: () => null,
-        );
-    final state = ref.read(stateDatabaseProvider).maybeWhen(
-          data: (s) => s,
-          orElse: () => null,
-        );
-    final catalog = ref.read(catalogRepositoryProvider).maybeWhen(
-          data: (c) => c,
-          orElse: () => null,
-        );
+    final paths = ref
+        .read(appPathsProvider)
+        .maybeWhen(data: (p) => p, orElse: () => null);
+    final state = ref
+        .read(stateDatabaseProvider)
+        .maybeWhen(data: (s) => s, orElse: () => null);
+    final catalog = ref
+        .read(catalogRepositoryProvider)
+        .maybeWhen(data: (c) => c, orElse: () => null);
     if (paths == null || state == null || catalog == null) return;
 
     final token = CancellationToken();
@@ -204,48 +202,47 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
     _textSearchSub = svc
         .search(query: _query, exactPhrase: _exactPhrase, token: token)
         .listen(
-      (g) {
-        if (!mounted || token.isCancelled) return;
-        setState(() {
-          _textGroups.removeWhere((x) => x.bookId == g.bookId);
-          _textGroups.add(g);
-          seen.add(g.bookId);
-          _textSearchDone = seen.length;
-        });
-      },
-      onError: (_) {
-        if (!mounted || token.isCancelled) return;
-        setState(() {
-          _textSearching = false;
-          _textSearchFailed = true;
-        });
-      },
-      onDone: () {
-        if (!mounted || token.isCancelled) return;
-        setState(() {
-          _textSearching = false;
-          _textSearchDone = _textSearchTotal;
-          // Re-sort to LS-11 order
-          final order = {
-            for (var i = 0; i < ordered.length; i++) ordered[i]: i,
-          };
-          _textGroups.sort(
-            (a, b) => (order[a.bookId] ?? 0).compareTo(order[b.bookId] ?? 0),
-          );
-        });
-      },
-    );
+          (g) {
+            if (!mounted || token.isCancelled) return;
+            setState(() {
+              _textGroups.removeWhere((x) => x.bookId == g.bookId);
+              _textGroups.add(g);
+              seen.add(g.bookId);
+              _textSearchDone = seen.length;
+            });
+          },
+          onError: (_) {
+            if (!mounted || token.isCancelled) return;
+            setState(() {
+              _textSearching = false;
+              _textSearchFailed = true;
+            });
+          },
+          onDone: () {
+            if (!mounted || token.isCancelled) return;
+            setState(() {
+              _textSearching = false;
+              _textSearchDone = _textSearchTotal;
+              // Re-sort to LS-11 order
+              final order = {
+                for (var i = 0; i < ordered.length; i++) ordered[i]: i,
+              };
+              _textGroups.sort(
+                (a, b) =>
+                    (order[a.bookId] ?? 0).compareTo(order[b.bookId] ?? 0),
+              );
+            });
+          },
+        );
   }
 
   void _scheduleLoad() {
-    final catalog = ref.read(catalogRepositoryProvider).maybeWhen(
-          data: (c) => c,
-          orElse: () => null,
-        );
-    final state = ref.read(stateDatabaseProvider).maybeWhen(
-          data: (s) => s,
-          orElse: () => null,
-        );
+    final catalog = ref
+        .read(catalogRepositoryProvider)
+        .maybeWhen(data: (c) => c, orElse: () => null);
+    final state = ref
+        .read(stateDatabaseProvider)
+        .maybeWhen(data: (s) => s, orElse: () => null);
     if (catalog == null || state == null) return;
     unawaited(_loadActive(catalog, state.installedBookIds().toSet()));
   }
@@ -261,8 +258,10 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
 
     try {
       if (_tabs.index == 0 && _categoryFilter != null) {
-        final books =
-            catalog.installedBooksByCategory(_categoryFilter!.id, ids);
+        final books = catalog.installedBooksByCategory(
+          _categoryFilter!.id,
+          ids,
+        );
         if (!mounted || gen != _loadGen) return;
         setState(() {
           _drillBooks = books;
@@ -359,236 +358,240 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        body: stateAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('$e')),
-          data: (state) {
-            final ids = state.installedBookIds().toSet();
-            if (ids.isEmpty) {
-              return EmptyState(
-                message: l10n.libraryEmptyHint,
-                actionLabel: l10n.browseCatalog,
-                onAction: () =>
-                    ref.read(homeTabIndexProvider.notifier).go(HomeTabs.catalog),
-              );
-            }
-            return catalogAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('$e')),
-              data: (catalog) {
-                if (_categories == null &&
-                    _authors == null &&
-                    _allBooks == null &&
-                    !_loading) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) unawaited(_loadActive(catalog, ids));
-                  });
-                }
-                final t = IshamelaTokens.of(context);
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  l10n.tabLibrary,
-                                  style: TextStyle(
-                                    fontFamily: kFontAmiri,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 26,
-                                    color: t.ink,
+        body: SafeArea(
+          bottom: false,
+          child: stateAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('$e')),
+            data: (state) {
+              final ids = state.installedBookIds().toSet();
+              if (ids.isEmpty) {
+                return EmptyState(
+                  message: l10n.libraryEmptyHint,
+                  actionLabel: l10n.browseCatalog,
+                  onAction: () => ref
+                      .read(homeTabIndexProvider.notifier)
+                      .go(HomeTabs.catalog),
+                );
+              }
+              return catalogAsync.when(
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(child: Text('$e')),
+                data: (catalog) {
+                  if (_categories == null &&
+                      _authors == null &&
+                      _allBooks == null &&
+                      !_loading) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) unawaited(_loadActive(catalog, ids));
+                    });
+                  }
+                  final t = IshamelaTokens.of(context);
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    l10n.tabLibrary,
+                                    style: TextStyle(
+                                      fontFamily: kFontAmiri,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 26,
+                                      color: t.ink,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              if (!_selecting)
-                                IconButton(
-                                  tooltip: l10n.tabDownloads,
-                                  icon: const Icon(Icons.download_outlined),
-                                  onPressed: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) => const DownloadsPage(),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              if (_selecting) ...[
-                                IconButton(
-                                  tooltip: l10n.selectAll,
-                                  icon: const Icon(Icons.select_all),
-                                  onPressed: () {
-                                    final books = _currentBooks();
-                                    setState(() {
-                                      _selected
-                                        ..clear()
-                                        ..addAll(books.map((b) => b.bookId));
-                                    });
-                                  },
-                                ),
-                                IconButton(
-                                  tooltip: l10n.delete,
-                                  icon: const Icon(Icons.delete_outline),
-                                  onPressed: _selected.isEmpty
-                                      ? null
-                                      : () =>
-                                          _bulkDelete(downloadsAsync),
-                                ),
-                                IconButton(
-                                  tooltip: l10n.cancel,
-                                  icon: const Icon(Icons.close),
-                                  onPressed: () => setState(() {
-                                    _selecting = false;
-                                    _selected.clear();
-                                  }),
-                                ),
-                              ] else if (_showingBooksList)
-                                IconButton(
-                                  tooltip: l10n.select,
-                                  icon: const Icon(Icons.checklist),
-                                  onPressed: () =>
-                                      setState(() => _selecting = true),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          _ContinueReadingHero(state: state, catalog: catalog),
-                          const SizedBox(height: 12),
-                          AppSearchField(
-                            key: ValueKey('lib-search-${_tabs.index}'),
-                            hintText: l10n.searchHint,
-                            initialQuery: _query,
-                            onChanged: _onSearchChanged,
-                          ),
-                          if (_query.trim().isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            GlassCluster(
-                              shape: const GlassShape.pill(),
-                              useBackdrop: false,
-                              child: SegmentedPills(
-                              labels: [
-                                l10n.searchScopeTitles,
-                                l10n.searchScopeTexts,
-                              ],
-                              selectedIndex: _searchScope,
-                              onChanged: (i) {
-                                _cancelTextSearch();
-                                setState(() {
-                                  _searchScope = i;
-                                  _textGroups.clear();
-                                });
-                                if (i == 1) _startTextSearch();
-                              },
-                            ),
-                            ),
-                            if (_searchScope == 1) ...[
-                              const SizedBox(height: 8),
-                              Align(
-                                alignment: AlignmentDirectional.centerStart,
-                                child: GlassCluster(
-                                  shape: const GlassShape.pill(),
-                                  useBackdrop: false,
-                                  child: GlassFilterChip(
-                                    label: Text(l10n.exactPhrase),
-                                    selected: _exactPhrase,
-                                    onSelected: (v) {
-                                      setState(() => _exactPhrase = v);
-                                      _startTextSearch();
+                                if (!_selecting)
+                                  IconButton(
+                                    tooltip: l10n.tabDownloads,
+                                    icon: const Icon(Icons.download_outlined),
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => const DownloadsPage(),
+                                        ),
+                                      );
                                     },
                                   ),
+                                if (_selecting) ...[
+                                  IconButton(
+                                    tooltip: l10n.selectAll,
+                                    icon: const Icon(Icons.select_all),
+                                    onPressed: () {
+                                      final books = _currentBooks();
+                                      setState(() {
+                                        _selected
+                                          ..clear()
+                                          ..addAll(books.map((b) => b.bookId));
+                                      });
+                                    },
+                                  ),
+                                  IconButton(
+                                    tooltip: l10n.delete,
+                                    icon: const Icon(Icons.delete_outline),
+                                    onPressed: _selected.isEmpty
+                                        ? null
+                                        : () => _bulkDelete(downloadsAsync),
+                                  ),
+                                  IconButton(
+                                    tooltip: l10n.cancel,
+                                    icon: const Icon(Icons.close),
+                                    onPressed: () => setState(() {
+                                      _selecting = false;
+                                      _selected.clear();
+                                    }),
+                                  ),
+                                ] else if (_showingBooksList)
+                                  IconButton(
+                                    tooltip: l10n.select,
+                                    icon: const Icon(Icons.checklist),
+                                    onPressed: () =>
+                                        setState(() => _selecting = true),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            _ContinueReadingHero(
+                              state: state,
+                              catalog: catalog,
+                            ),
+                            const SizedBox(height: 12),
+                            AppSearchField(
+                              key: ValueKey('lib-search-${_tabs.index}'),
+                              hintText: l10n.searchHint,
+                              initialQuery: _query,
+                              onChanged: _onSearchChanged,
+                            ),
+                            if (_query.trim().isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              GlassCluster(
+                                shape: const GlassShape.pill(),
+                                useBackdrop: false,
+                                child: SegmentedPills(
+                                  labels: [
+                                    l10n.searchScopeTitles,
+                                    l10n.searchScopeTexts,
+                                  ],
+                                  selectedIndex: _searchScope,
+                                  onChanged: (i) {
+                                    _cancelTextSearch();
+                                    setState(() {
+                                      _searchScope = i;
+                                      _textGroups.clear();
+                                    });
+                                    if (i == 1) _startTextSearch();
+                                  },
                                 ),
                               ),
-                              if (_textSearching)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      LinearProgressIndicator(
-                                        value: _textSearchTotal == 0
-                                            ? null
-                                            : (_textSearchDone /
-                                                    _textSearchTotal)
-                                                .clamp(0.0, 1.0),
-                                        minHeight: 3,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        l10n.searchingBooksProgress(
-                                          _textSearchDone,
-                                          _textSearchTotal,
-                                        ),
-                                        style: TextStyle(
-                                          fontFamily: kFontUi,
-                                          fontSize: 11,
-                                          color: t.muted,
-                                        ),
-                                      ),
-                                    ],
+                              if (_searchScope == 1) ...[
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: AlignmentDirectional.centerStart,
+                                  child: GlassCluster(
+                                    shape: const GlassShape.pill(),
+                                    useBackdrop: false,
+                                    child: GlassFilterChip(
+                                      label: Text(l10n.exactPhrase),
+                                      selected: _exactPhrase,
+                                      onSelected: (v) {
+                                        setState(() => _exactPhrase = v);
+                                        _startTextSearch();
+                                      },
+                                    ),
                                   ),
                                 ),
+                                if (_textSearching)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        LinearProgressIndicator(
+                                          value: _textSearchTotal == 0
+                                              ? null
+                                              : (_textSearchDone /
+                                                        _textSearchTotal)
+                                                    .clamp(0.0, 1.0),
+                                          minHeight: 3,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          l10n.searchingBooksProgress(
+                                            _textSearchDone,
+                                            _textSearchTotal,
+                                          ),
+                                          style: TextStyle(
+                                            fontFamily: kFontUi,
+                                            fontSize: 11,
+                                            color: t.muted,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ],
+                            if (_searchScope != 1) ...[
+                              const SizedBox(height: 12),
+                              SegmentedPills(
+                                labels: [
+                                  l10n.categories,
+                                  l10n.authors,
+                                  l10n.libraryAllBooks,
+                                ],
+                                selectedIndex: _tabs.index,
+                                onChanged: (i) {
+                                  if (_tabs.index != i) _tabs.animateTo(i);
+                                },
+                              ),
                             ],
                           ],
-                          if (_searchScope != 1) ...[
-                            const SizedBox(height: 12),
-                            SegmentedPills(
-                              labels: [
-                                l10n.categories,
-                                l10n.authors,
-                                l10n.libraryAllBooks,
-                              ],
-                              selectedIndex: _tabs.index,
-                              onChanged: (i) {
-                                if (_tabs.index != i) _tabs.animateTo(i);
-                              },
-                            ),
-                          ],
-                        ],
+                        ),
                       ),
-                    ),
-                    if (_needsBack && _searchScope != 1)
-                      ListTile(
-                        leading: const Icon(Icons.arrow_forward),
-                        title: Text(l10n.back),
-                        onTap: () {
-                          setState(() {
-                            _categoryFilter = null;
-                            _authorFilter = null;
-                            _drillBooks = null;
-                            _selecting = false;
-                            _selected.clear();
-                          });
-                          _scheduleLoad();
-                        },
+                      if (_needsBack && _searchScope != 1)
+                        ListTile(
+                          leading: const Icon(Icons.arrow_forward),
+                          title: Text(l10n.back),
+                          onTap: () {
+                            setState(() {
+                              _categoryFilter = null;
+                              _authorFilter = null;
+                              _drillBooks = null;
+                              _selecting = false;
+                              _selected.clear();
+                            });
+                            _scheduleLoad();
+                          },
+                        ),
+                      Expanded(
+                        child: AnimatedBuilder(
+                          animation: _tabs,
+                          builder: (context, _) {
+                            if (_searchScope == 1 && _query.trim().isNotEmpty) {
+                              return _textSearchResults(l10n, t);
+                            }
+                            if (_loading && !_hasDataForActive) {
+                              return const Center(
+                                child: CircularProgressIndicator(),
+                              );
+                            }
+                            return _buildActiveTab(l10n, downloadsAsync);
+                          },
+                        ),
                       ),
-                    Expanded(
-                      child: AnimatedBuilder(
-                        animation: _tabs,
-                        builder: (context, _) {
-                          if (_searchScope == 1 &&
-                              _query.trim().isNotEmpty) {
-                            return _textSearchResults(l10n, t);
-                          }
-                          if (_loading && !_hasDataForActive) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
-                          return _buildActiveTab(l10n, downloadsAsync);
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-            );
-          },
+                    ],
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -623,7 +626,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
     }
     final reduce = MediaQuery.disableAnimationsOf(context);
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + navBarInset(context)),
       itemCount: _textGroups.length,
       itemBuilder: (context, i) {
         final g = _textGroups[i];
@@ -632,9 +635,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
             : '${g.totalHits}';
         return TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: 1),
-          duration: reduce
-              ? Duration.zero
-              : const Duration(milliseconds: 120),
+          duration: reduce ? Duration.zero : const Duration(milliseconds: 120),
           builder: (context, opacity, child) =>
               Opacity(opacity: opacity, child: child),
           child: Padding(
@@ -742,9 +743,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
       (_tabs.index == 1 && _authorFilter != null);
 
   bool get _showingBooksList =>
-      _tabs.index == 2 ||
-      _categoryFilter != null ||
-      _authorFilter != null;
+      _tabs.index == 2 || _categoryFilter != null || _authorFilter != null;
 
   bool get _hasDataForActive {
     if (_tabs.index == 0 && _categoryFilter != null) {
@@ -814,15 +813,13 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
     final q = normalize(_query.trim());
     final filtered = q.isEmpty
         ? cats
-        : cats
-            .where((e) => normalize(e.category.name).contains(q))
-            .toList();
+        : cats.where((e) => normalize(e.category.name).contains(q)).toList();
     if (filtered.isEmpty) {
       return EmptyState(message: l10n.noBooks);
     }
     final t = IshamelaTokens.of(context);
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + navBarInset(context)),
       itemCount: filtered.length,
       itemBuilder: (context, i) {
         final e = filtered[i];
@@ -878,15 +875,13 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
     final q = normalize(_query.trim());
     final filtered = q.isEmpty
         ? authors
-        : authors
-            .where((e) => normalize(e.author.name).contains(q))
-            .toList();
+        : authors.where((e) => normalize(e.author.name).contains(q)).toList();
     if (filtered.isEmpty) {
       return EmptyState(message: l10n.noBooks);
     }
     final t = IshamelaTokens.of(context);
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + navBarInset(context)),
       itemCount: filtered.length,
       itemBuilder: (context, i) {
         final e = filtered[i];
@@ -931,12 +926,11 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
     if (books.isEmpty) {
       return EmptyState(message: l10n.noBooks);
     }
-    final state = ref.read(stateDatabaseProvider).maybeWhen(
-          data: (s) => s,
-          orElse: () => null,
-        );
+    final state = ref
+        .read(stateDatabaseProvider)
+        .maybeWhen(data: (s) => s, orElse: () => null);
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + navBarInset(context)),
       itemCount: books.length,
       itemBuilder: (context, i) {
         final book = books[i];
@@ -990,12 +984,12 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
               selected: _selecting ? _selected.contains(book.bookId) : null,
               onSelectedChanged: _selecting
                   ? (_) => setState(() {
-                        if (_selected.contains(book.bookId)) {
-                          _selected.remove(book.bookId);
-                        } else {
-                          _selected.add(book.bookId);
-                        }
-                      })
+                      if (_selected.contains(book.bookId)) {
+                        _selected.remove(book.bookId);
+                      } else {
+                        _selected.add(book.bookId);
+                      }
+                    })
                   : null,
               onTap: () {
                 _removeHover();
@@ -1028,10 +1022,9 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
                       data: (s) => s,
                       orElse: () => null,
                     );
-                    final db = ref.read(stateDatabaseProvider).maybeWhen(
-                          data: (s) => s,
-                          orElse: () => null,
-                        );
+                    final db = ref
+                        .read(stateDatabaseProvider)
+                        .maybeWhen(data: (s) => s, orElse: () => null);
                     final signedIn = ref.read(authProvider).isVerified;
                     final choice = await showBookRemovalSheet(
                       context,
@@ -1060,8 +1053,7 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
                   }
                 },
                 itemBuilder: (_) {
-                  final count =
-                      state?.annotationCountForBook(book.bookId) ?? 0;
+                  final count = state?.annotationCountForBook(book.bookId) ?? 0;
                   return [
                     PopupMenuItem(value: 'card', child: Text(l10n.bookCard)),
                     PopupMenuItem(
@@ -1096,20 +1088,14 @@ class _LibraryPageState extends ConsumerState<LibraryPage>
     return (pageId / total).clamp(0.0, 1.0);
   }
 
-  Future<void> _bulkDelete(
-    AsyncValue<DownloadService> downloadsAsync,
-  ) async {
+  Future<void> _bulkDelete(AsyncValue<DownloadService> downloadsAsync) async {
     final signedIn = ref.read(authProvider).isVerified;
     final choice = await showBookRemovalSheet(context, signedIn: signedIn);
     if (choice == null) return;
-    final svc = downloadsAsync.maybeWhen(
-      data: (s) => s,
-      orElse: () => null,
-    );
-    final db = ref.read(stateDatabaseProvider).maybeWhen(
-          data: (s) => s,
-          orElse: () => null,
-        );
+    final svc = downloadsAsync.maybeWhen(data: (s) => s, orElse: () => null);
+    final db = ref
+        .read(stateDatabaseProvider)
+        .maybeWhen(data: (s) => s, orElse: () => null);
     if (svc == null || db == null) return;
     for (final id in _selected.toList()) {
       await applyBookRemoval(
@@ -1265,8 +1251,7 @@ class _ContinueReadingHero extends StatelessWidget {
     final total = book.pageCount > 0
         ? book.pageCount
         : (state.installedPageCount(book.bookId) ?? 0);
-    final progress =
-        total > 0 ? (latest.pageId / total).clamp(0.0, 1.0) : 0.0;
+    final progress = total > 0 ? (latest.pageId / total).clamp(0.0, 1.0) : 0.0;
 
     return Material(
       color: t.green900,
@@ -1318,14 +1303,14 @@ class _ContinueReadingHero extends StatelessWidget {
                   InkWell(
                     onTap: installed
                         ? () => ReaderPage.open(
-                              context,
-                              bookId: book.bookId,
-                              title: book.title,
-                              authorName: book.authorName,
-                              initialPageId: latest.pageId,
-                              initialPrintPage: latest.printPage,
-                              initialPart: latest.part,
-                            )
+                            context,
+                            bookId: book.bookId,
+                            title: book.title,
+                            authorName: book.authorName,
+                            initialPageId: latest.pageId,
+                            initialPrintPage: latest.printPage,
+                            initialPart: latest.part,
+                          )
                         : null,
                     child: Text(
                       book.title,

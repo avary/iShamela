@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ishamela/core/auth/auth_controller.dart';
 import 'package:ishamela/core/auth/firebase_bootstrap.dart';
 import 'package:ishamela/core/auth/auth_state.dart';
+import 'package:ishamela/core/auth/profile_cache.dart';
 import 'package:ishamela/core/compress/zstd.dart';
 import 'package:ishamela/core/config.dart';
 import 'package:ishamela/core/db/paths.dart';
@@ -69,6 +70,10 @@ final dioProvider = Provider<Dio>((ref) => createAppDio());
 
 final tokenStoreProvider = Provider<TokenStore>((ref) => SecureTokenStore());
 
+final profileCacheProvider = Provider<ProfileCache>(
+  (ref) => SecureProfileCache(),
+);
+
 final syncApiProvider = Provider<IshamelaApi>((ref) {
   final tokens = ref.watch(tokenStoreProvider);
   final dio = Dio(
@@ -88,6 +93,7 @@ final syncApiProvider = Provider<IshamelaApi>((ref) {
         try {
           if (firebaseReady) await FirebaseAuth.instance.signOut();
         } catch (_) {}
+        await ref.read(authProvider.notifier).forceGuest();
         final db = await ref.read(stateDatabaseProvider.future);
         db.clearSyncSession();
       },

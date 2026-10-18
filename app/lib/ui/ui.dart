@@ -7,6 +7,7 @@ export 'empty_state.dart';
 export 'highlighted_text.dart';
 export 'jump_sheet.dart';
 export 'meta_chip.dart';
+export 'nav_bar_inset.dart';
 export 'page_pill.dart';
 export 'progress_ring.dart';
 export 'rosette_divider.dart';

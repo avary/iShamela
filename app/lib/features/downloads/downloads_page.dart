@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ishamela/l10n/app_localizations.dart';
-
 import 'package:ishamela/core/format_bytes.dart';
 import 'package:ishamela/core/models/models.dart';
 import 'package:ishamela/core/providers.dart';
 import 'package:ishamela/features/downloads/download_service.dart';
 import 'package:ishamela/features/downloads/download_tabs.dart';
 import 'package:ishamela/features/reader/reader_page.dart';
+import 'package:ishamela/l10n/app_localizations.dart';
 import 'package:ishamela/ui/download_card.dart';
 import 'package:ishamela/ui/empty_state.dart';
 import 'package:ishamela/ui/glass/drawn/drawn_glass_surface.dart';
@@ -63,121 +62,123 @@ class _DownloadsPageState extends ConsumerState<DownloadsPage> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        body: svcAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('$e')),
-          data: (svc) {
-            if (_svc != svc) {
-              _svc?.removeListener(_onChange);
-              _svc = svc;
-              _svc!.addListener(_onChange);
-            }
-            final all = svc.listTasks();
-            final active =
-                filterDownloadTasks(all, DownloadsTab.active).length;
-            final held = ref.watch(stateDatabaseProvider).maybeWhen(
-                  data: (db) => db.libraryHeldIds(),
-                  orElse: () => <int>{},
-                );
-            return Column(
-              children: [
-                if (held.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: Text(
-                      l10n.libraryWaitingWifi,
-                      style: TextStyle(
-                        fontFamily: kFontUi,
-                        fontSize: 13,
-                        color: t.muted,
+        body: SafeArea(
+          child: svcAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('$e')),
+            data: (svc) {
+              if (_svc != svc) {
+                _svc?.removeListener(_onChange);
+                _svc = svc;
+                _svc!.addListener(_onChange);
+              }
+              final all = svc.listTasks();
+              final active =
+                  filterDownloadTasks(all, DownloadsTab.active).length;
+              final held = ref.watch(stateDatabaseProvider).maybeWhen(
+                    data: (db) => db.libraryHeldIds(),
+                    orElse: () => <int>{},
+                  );
+              return Column(
+                children: [
+                  if (held.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                      child: Text(
+                        l10n.libraryWaitingWifi,
+                        style: TextStyle(
+                          fontFamily: kFontUi,
+                          fontSize: 13,
+                          color: t.muted,
+                        ),
                       ),
                     ),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              l10n.tabDownloads,
-                              style: TextStyle(
-                                fontFamily: kFontAmiri,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 26,
-                                color: t.ink,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                l10n.tabDownloads,
+                                style: TextStyle(
+                                  fontFamily: kFontAmiri,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 26,
+                                  color: t.ink,
+                                ),
                               ),
                             ),
-                          ),
-                          if (_selecting) ...[
-                            IconButton(
-                              tooltip: l10n.selectAll,
-                              icon: const Icon(Icons.select_all),
-                              onPressed: () {
-                                final tasks = filterDownloadTasks(
-                                  svc.listTasks(),
-                                  _currentTab,
-                                );
-                                setState(() {
-                                  _selected
-                                    ..clear()
-                                    ..addAll(tasks.map((x) => x.bookId));
-                                });
-                              },
-                            ),
-                            ..._bulkActions(l10n, svc),
-                            IconButton(
-                              tooltip: l10n.cancel,
-                              icon: const Icon(Icons.close),
-                              onPressed: () => setState(() {
-                                _selecting = false;
-                                _selected.clear();
-                              }),
-                            ),
-                          ] else
-                            IconButton(
-                              tooltip: l10n.select,
-                              icon: const Icon(Icons.checklist),
-                              onPressed: () =>
-                                  setState(() => _selecting = true),
-                            ),
-                        ],
-                      ),
-                      if (active > 0)
-                        Text(
-                          l10n.activeDownloadsCount(active),
-                          style: TextStyle(
-                            fontFamily: kFontUi,
-                            color: t.muted,
-                            fontSize: 12,
-                          ),
+                            if (_selecting) ...[
+                              IconButton(
+                                tooltip: l10n.selectAll,
+                                icon: const Icon(Icons.select_all),
+                                onPressed: () {
+                                  final tasks = filterDownloadTasks(
+                                    svc.listTasks(),
+                                    _currentTab,
+                                  );
+                                  setState(() {
+                                    _selected
+                                      ..clear()
+                                      ..addAll(tasks.map((x) => x.bookId));
+                                  });
+                                },
+                              ),
+                              ..._bulkActions(l10n, svc),
+                              IconButton(
+                                tooltip: l10n.cancel,
+                                icon: const Icon(Icons.close),
+                                onPressed: () => setState(() {
+                                  _selecting = false;
+                                  _selected.clear();
+                                }),
+                              ),
+                            ] else
+                              IconButton(
+                                tooltip: l10n.select,
+                                icon: const Icon(Icons.checklist),
+                                onPressed: () =>
+                                    setState(() => _selecting = true),
+                              ),
+                          ],
                         ),
-                      const SizedBox(height: 12),
-                      GlassCluster(
-                        shape: const GlassShape.pill(),
-                        child: SegmentedPills(
-                        labels: [
-                          l10n.downloadsActive,
-                          l10n.downloadsFailed,
-                          l10n.downloadsCompleted,
-                        ],
-                        selectedIndex: _tabIndex,
-                        onChanged: (i) => setState(() {
-                          _tabIndex = i;
-                          _selected.clear();
-                          _selecting = false;
-                        }),
-                      ),
-                      ),
-                    ],
+                        if (active > 0)
+                          Text(
+                            l10n.activeDownloadsCount(active),
+                            style: TextStyle(
+                              fontFamily: kFontUi,
+                              color: t.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        const SizedBox(height: 12),
+                        GlassCluster(
+                          shape: const GlassShape.pill(),
+                          child: SegmentedPills(
+                          labels: [
+                            l10n.downloadsActive,
+                            l10n.downloadsFailed,
+                            l10n.downloadsCompleted,
+                          ],
+                          selectedIndex: _tabIndex,
+                          onChanged: (i) => setState(() {
+                            _tabIndex = i;
+                            _selected.clear();
+                            _selecting = false;
+                          }),
+                        ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(child: _taskList(l10n, svc, _currentTab)),
-              ],
-            );
-          },
+                  Expanded(child: _taskList(l10n, svc, _currentTab)),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

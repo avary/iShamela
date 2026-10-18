@@ -80,7 +80,8 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final t = IshamelaTokens.of(context);
-    final canExport = (_includeHighlights && widget.highlightCount > 0) ||
+    final canExport =
+        (_includeHighlights && widget.highlightCount > 0) ||
         (_includeNotes && widget.noteCount > 0);
 
     return Padding(
@@ -114,19 +115,14 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
             ),
           const SizedBox(height: 16),
           SegmentedPills(
-            labels: [
-              l10n.exportFormatMarkdown,
-              l10n.exportFormatText,
-            ],
+            labels: [l10n.exportFormatMarkdown, l10n.exportFormatText],
             selectedIndex: _formatIndex,
             onChanged: (i) => setState(() => _formatIndex = i),
           ),
           const SizedBox(height: 12),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text(
-              '${l10n.includeHighlights} ${widget.highlightCount}',
-            ),
+            title: Text('${l10n.includeHighlights} ${widget.highlightCount}'),
             value: _includeHighlights && widget.highlightCount > 0,
             onChanged: widget.highlightCount == 0
                 ? null
@@ -177,8 +173,7 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
         final notes = state.notesForBook(widget.bookId);
         final notesByKey = <String, List<Map<String, Object?>>>{};
         for (final n in notes) {
-          final key =
-              '${n['page_id']}:${n['start_offset']}:${n['end_offset']}';
+          final key = '${n['page_id']}:${n['start_offset']}:${n['end_offset']}';
           notesByKey.putIfAbsent(key, () => []).add(n);
         }
 
@@ -286,21 +281,13 @@ class _ExportSheetState extends ConsumerState<_ExportSheet> {
       final bytes = utf8.encode(text);
       await SharePlus.instance.share(
         ShareParams(
-          files: [
-            XFile.fromData(
-              bytes,
-              mimeType: 'text/plain',
-              name: name,
-            ),
-          ],
+          files: [XFile.fromData(bytes, mimeType: 'text/plain', name: name)],
           subject: l10n.notesFileHeading(widget.title),
         ),
       );
       if (!mounted) return;
       nav.pop();
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.exportDone)),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(l10n.exportDone)));
     } catch (_) {
       // Share cancel or platform failure — silent per EX-32 except unexpected.
     } finally {

@@ -16,6 +16,7 @@ import 'package:ishamela/features/settings/storage_page.dart';
 import 'package:ishamela/ui/glass/interface_style.dart';
 import 'package:ishamela/ui/theme/atmosphere_label.dart';
 import 'package:ishamela/ui/theme/ishamela_theme.dart';
+import 'package:ishamela/ui/nav_bar_inset.dart';
 import 'package:ishamela/ui/theme/ishamela_tokens.dart';
 import 'package:ishamela/ui/theme/reader_theme_tokens.dart';
 
@@ -33,7 +34,7 @@ class SettingsPage extends ConsumerWidget {
     final width = MediaQuery.sizeOf(context).width;
 
     final body = ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 32 + navBarInset(context)),
       children: [
         Row(
           children: [
@@ -180,8 +181,7 @@ class SettingsPage extends ConsumerWidget {
                         max: 40,
                         divisions: 26,
                         label: styles.fontSize.round().toString(),
-                        onChanged: (v) =>
-                            notifier.save(styles.withFontSize(v)),
+                        onChanged: (v) => notifier.save(styles.withFontSize(v)),
                       ),
                     ),
                     Text(
@@ -237,16 +237,19 @@ class SettingsPage extends ConsumerWidget {
 
     if (width >= 600 && width < 800) {
       return Scaffold(
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: body,
+        body: SafeArea(
+          bottom: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: body,
+            ),
           ),
         ),
       );
     }
 
-    return Scaffold(body: body);
+    return Scaffold(body: SafeArea(bottom: false, child: body));
   }
 
   String _roleLabel(AppLocalizations l10n, TextRole role) {
@@ -266,10 +269,7 @@ class SettingsPage extends ConsumerWidget {
 }
 
 class _InterfaceStylePicker extends StatelessWidget {
-  const _InterfaceStylePicker({
-    required this.style,
-    required this.onChanged,
-  });
+  const _InterfaceStylePicker({required this.style, required this.onChanged});
 
   final InterfaceStyle style;
   final ValueChanged<InterfaceStyle> onChanged;
@@ -595,9 +595,7 @@ class _RoleStyleTile extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: c,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Theme.of(ctx).dividerColor,
-                          ),
+                          border: Border.all(color: Theme.of(ctx).dividerColor),
                         ),
                       ),
                     ),
@@ -781,9 +779,7 @@ class _AccountCard extends StatelessWidget {
             trailing: const Icon(Icons.chevron_left),
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const DownloadsPage(),
-                ),
+                MaterialPageRoute<void>(builder: (_) => const DownloadsPage()),
               );
             },
           ),

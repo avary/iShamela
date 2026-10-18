@@ -12,12 +12,10 @@ String formatCitation({
   final ex = excerpt.trim().replaceAll(RegExp(r'\s+'), ' ');
   final page = pageNumber?.toString() ?? '—';
   if (arabic) {
-    final partBit =
-        (part != null && part.isNotEmpty) ? '، ج$part' : '';
+    final partBit = (part != null && part.isNotEmpty) ? '، ج$part' : '';
     return '«$ex» — $title، $author$partBit، ص$page';
   }
-  final partBit =
-      (part != null && part.isNotEmpty) ? ', vol. $part' : '';
+  final partBit = (part != null && part.isNotEmpty) ? ', vol. $part' : '';
   return '"$ex" — $title, $author$partBit, p. $page';
 }
 
